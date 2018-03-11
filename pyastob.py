@@ -28,14 +28,37 @@ class App:
             "OBFUSCATE_IDS_INCLUDE": [],
             }
             
+    def top_module(self):
+        """
+        Returns the top module of the app
+        """
+        return self.modules[0] if self.modules else None
+            
     def read_config(self,path):
         logging.debug("Read config from %s" % path)
         exec(open(path).read(), self.CONFIG)
         logging.debug(" => %r" % self.CONFIG)
         
-    def add_module(self, module):
+    def add_module(self, path, target_relative_path):
+        """
+        Add one module, and recursively, build all depending modules that can be found locally
+        """
+        path = os.path.normpath(path)
+        logging.debug("App::add_module(%r)" % path)
+        module = Module(path, app=self)
+        module.target_relative_path = target_relative_path
+        module.parse()
+        
         self.modules.append(module)
         self.ids.update(module.collect_ids())
+        
+        this_module_dir = os.path.dirname(path)
+        this_module_target_dir = os.path.dirname(target_relative_path)
+        
+        for import_path in module.import_paths:
+            src_path = os.path.normpath(os.path.join(this_module_dir, import_path))
+            if (src_path not in [m.path for m in self.modules]) and (os.path.exists(src_path)):
+                self.add_module(src_path, os.path.join(this_module_target_dir, import_path))
     
         
     def build_ob_ids(self):
@@ -65,6 +88,18 @@ class App:
             self.ob_ids_map[id] = ob_id
 
 
+    def generate_bundled_dir(self, dir_target):
+        """
+        Generate a bundle of top module + found imports in target_dir.
+        Apply obfusaction.
+        """
+        logging.debug("App::generate_bundled_dir(dir_target=%r)" % dir_target)
+        for module in self.modules:
+            module.obfuscate_docstring()
+            module.obfuscate_ids()
+            module.generate(os.path.join( dir_target, module.target_relative_path))
+        
+
 
 class Module:
 
@@ -72,13 +107,17 @@ class Module:
     
     def __init__(self, path, app):
         self.path = path
+        self.target_relative_path = None
         self.app = app
         
         self.docstring_exclude = []
+        
+        self.import_paths = set()  # set of imported python files relative to the directory containing this module
 
 
         
     def parse(self):
+        logging.debug("Module::parse: self.path=%s" % self.path)
         with open(self.path) as F:
             
             # look for a shebang in first line
@@ -91,13 +130,40 @@ class Module:
             
             self.AST = ast.parse(F.read(), self.path)
             
-            # for every node, keep track of its parent
-            self.AST.o_level = 0
-            for node in ast.walk(self.AST):
-                for child in ast.iter_child_nodes(node):
-                    child.o_parent = node
-                    child.o_level = node.o_level + 1
-        
+        # for every node, keep track of its parent
+        self.AST.o_level = 0
+        for node in ast.walk(self.AST):
+            for child in ast.iter_child_nodes(node):
+                child.o_parent = node
+                child.o_level = node.o_level + 1
+    
+        # look for imported modules
+        dirname = os.path.dirname(self.path)
+        for node in ast.walk(self.AST):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    # import 'alias.name' as 'alias.asname'
+                    print(alias.name)
+                    
+                    rel_path = alias.name+".py"
+                    src = os.path.join(dirname, rel_path)
+                    if os.path.exists(src):
+                        self.import_paths.add(rel_path)
+                        continue
+                    
+                    rel_path = os.path.join(alias.name, "__init__.py")
+                    src = os.path.join(dirname, rel_path)
+                    if os.path.exists(src):
+                        self.import_paths.add(rel_path)
+                        continue
+                        
+            if isinstance(node, ast.ImportFrom):
+                # todo
+                pass
+
+        logging.debug("import_paths: %r" % self.import_paths)
+                    
+                    
         
     def obfuscate_docstring(self):
         """
@@ -194,6 +260,7 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--module", metavar="FILE", required=True, help = 'initial source file')
     
     parser.add_argument("-c", "--config", metavar="FILE", help = "Config file")
+    parser.add_argument("-t", action="store_true", help = "Config file")
     
     args = parser.parse_args()
     
@@ -205,19 +272,11 @@ if __name__ == "__main__":
     if args.config:
         app.read_config(args.config)
     
-    top = Module(args.module, app=app)
-    top.parse()
     
-    app.add_module(top)
-
+    app.add_module(args.module, "__main__.py")
     app.build_ob_ids()
+    app.generate_bundled_dir(args.output_dir)
     
-    
-    if False:
-        top.walk_test()
-        exit(1)
-    
-    top.obfuscate_docstring()
-    top.obfuscate_ids()
-    top.generate(os.path.join( args.output_dir, os.path.basename(args.module)))
+
+
     
