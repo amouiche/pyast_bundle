@@ -157,9 +157,25 @@ class Module:
                         self.import_paths.add(rel_path)
                         continue
                         
-            if isinstance(node, ast.ImportFrom):
-                # todo
-                pass
+            elif isinstance(node, ast.ImportFrom):
+                # fields:
+                #   module : name of the module
+                #   names : list of alias objects
+                #   level : number of .. to apply to find the module
+                module_dir = dirname
+                for i in range(node.level):
+                    module_dir = os.path.join(module_dir, "..")
+                    
+                rel_path = node.module +".py"
+                src = os.path.join(module_dir, rel_path)
+                if os.path.exists(src):
+                    self.import_paths.add(rel_path)
+                    continue
+                rel_path = os.path.join(alias.name, "__init__.py")
+                src = os.path.join(module_dir, rel_path)
+                if os.path.exists(src):
+                    self.import_paths.add(rel_path)
+                    continue
 
         logging.debug("import_paths: %r" % self.import_paths)
                     
