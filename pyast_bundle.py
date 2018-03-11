@@ -8,8 +8,11 @@ import logging
 import re
 import hashlib
 import binascii
-
-
+import tempfile
+import shutil
+import zipfile
+import io
+import stat
 
 class App:
 
@@ -48,6 +51,8 @@ class App:
         module = Module(path, app=self)
         module.target_relative_path = target_relative_path
         module.parse()
+        
+        module.walk_test()
         
         self.modules.append(module)
         self.ids.update(module.collect_ids())
@@ -113,6 +118,7 @@ class Module:
         self.docstring_exclude = []
         
         self.import_paths = set()  # set of imported python files relative to the directory containing this module
+        self.shebang = None # initial shebang if there is one
 
 
         
@@ -272,16 +278,38 @@ if __name__ == "__main__":
 
 
     parser.add_argument("-v", "--verbose", action="store_true", help = 'more debug')
-    parser.add_argument("-o", "--output-dir", metavar="DIR", required=True, help = 'directory where new files are created')
-    parser.add_argument("-m", "--module", metavar="FILE", required=True, help = 'initial source file')
+
+    parser.add_argument("-m", "--module", metavar="FILE", required=True, help = 'initial module source file')
+    parser.add_argument("-o", "--output-dir", metavar="DIR", help = 'directory where new files are created')
+    parser.add_argument("-z", "--pyz", metavar="FILE", help = "PYZ package output file")
+    parser.add_argument("-s", "--shebang", action="store_true", help = "Place the main module shebang at the head of the pyz file")
+    parser.add_argument("-S", "--shebang-replace", metavar="SHEBANG", help = "Place this specific shebang at the heade of the pyz file")
+    parser.add_argument("-X", "--executable", action="store_true", help = "chmod a+x")
     
     parser.add_argument("-c", "--config", metavar="FILE", help = "Config file")
     parser.add_argument("-t", action="store_true", help = "Config file")
+    parser.add_argument("-k", "--keep", help="keep intermediate generated files (eg. temporary output dir)")
     
     args = parser.parse_args()
     
+    
+    if not args.output_dir and not args.pyz:
+        print("--output-dir and --pyz options are both missing. At least one required.")
+        exit(1)
+        
     if args.verbose:
         logging.basicConfig(format="[%(message)s)]", level=logging.DEBUG)
+                
+    if not args.output_dir:
+        # select a temporary directory for build result before zipping
+        args.output_dir = tempfile.mkdtemp(suffix=".pyast_bundle")
+        logging.debug("--output-dir not provided. Use '%s' instead" % args.output_dir)
+        temp_outpur_dir = True
+    else:
+        temp_outpur_dir = False
+        
+    
+
 
 
     app = App()
@@ -293,6 +321,41 @@ if __name__ == "__main__":
     app.build_ob_ids()
     app.generate_bundled_dir(args.output_dir)
     
-
+    if args.pyz:
+        print("Create pyz bundle %s from %s" % (args.pyz, args.output_dir))
+        
+        zio = io.BytesIO()
+        with zipfile.ZipFile(zio, mode="w") as zf:
+            for module in app.modules:
+                src = os.path.join( args.output_dir, module.target_relative_path )
+                print("%s => %s" % (src, module.target_relative_path))
+                zf.write(src, module.target_relative_path)
+                
+        with open(args.pyz, "wb") as F:
+            zio.seek(0)
+            # put she shebang
+            if args.shebang_replace:
+                shebang = args.shebang_replace
+            elif args.shebang or args.executable:
+                shebang = app.top_module().shebang
+            else:
+                shebang = None
+            shebang = shebang.strip() + "\n"
+            if shebang:
+                F.write(shebang.encode())
+                
+            # put the zip
+            F.write(zio.read())
+            
+        if args.executable:
+            # chmod a+x equivalent
+            m = stat.S_IMODE(os.stat(args.pyz).st_mode)
+            os.chmod(args.pyz, m | 0o111)
+            print(args.pyz)
+                
+    
+    # cleanup or intermediate / temporary files
+    if temp_outpur_dir and not args.keep:
+        shutil.rmtree(args.output_dir)
 
     
