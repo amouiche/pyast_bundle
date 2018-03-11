@@ -250,7 +250,7 @@ class Module:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description='Python Obfuscation using AST module',
+        description='Python Bundle tool using AST for introspection',
         formatter_class=argparse.RawTextHelpFormatter
         )
 
