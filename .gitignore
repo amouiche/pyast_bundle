@@ -1,4 +1,6 @@
 .*
 *.pyc
-*.done
+
+# testing
+test/done_*
 
