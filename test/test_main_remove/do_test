@@ -1,0 +1,15 @@
+#!/bin/sh
+set +x
+
+localdir=$(dirname $0)
+
+if ! $PYTHON $localdir/.test/__main__.py; then
+    echo "__main__ section was removed from __main__.py"
+    exit 1
+fi
+
+if ! $PYTHON $localdir/.test/lib.py; then
+    echo "__main__ section was not removed from lib.py"
+    exit 1
+fi
+
