@@ -101,6 +101,7 @@ class App:
         logging.debug("App::generate_bundled_dir(dir_target=%r)" % dir_target)
         for module in self.modules:
             module.obfuscate_docstring()
+            module.obfuscate_remove_libs_main()
             module.obfuscate_ids()
             module.generate(os.path.join( dir_target, module.target_relative_path))
         
@@ -205,7 +206,46 @@ class Module:
                     
                     if remove:
                         node.value.s = ""
+    
+    def obfuscate_remove_libs_main(self):
+        """
+        Remove 'if __name__ == "__main__":' sections of none top modules
+        """
+        
+        if self == self.app.top_module():
+            # this is the top module, don't remove it
+            return
+        
+        
+        class RewriteNode(ast.NodeTransformer):
 
+            def visit_If(self_, node):
+                print("visit", node)
+                
+                if not isinstance(node.test, ast.Compare): 
+                    return node
+                    
+                compare = node.test
+                if (not isinstance(compare.left, ast.Name)) or (compare.left.id != "__name__"):
+                    return node
+                    
+                if (len(compare.ops) != 1) or (not isinstance(compare.ops[0], ast.Eq)):
+                    return node
+                    
+                if (len(compare.comparators) != 1) or \
+                    (not isinstance(compare.comparators[0], ast.Str)) or \
+                    (compare.comparators[0].s != "__main__"):
+                    return node    
+                
+                # this is a if __name__ == "__main__" test. 
+                # replace its body by a 'pass'
+                logging.debug("""%s: Remove 'if __name__ == "__main__":' section.""" % self.target_relative_path)
+                node.body = [ast.Pass()] 
+                return node
+            
+        
+        self.AST = RewriteNode().visit(self.AST)
+        
 
     def obfuscate_ids(self):
         """
