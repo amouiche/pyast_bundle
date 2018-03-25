@@ -177,7 +177,7 @@ class Module:
                 if os.path.exists(src):
                     self.import_paths.add(rel_path)
                     continue
-                rel_path = os.path.join(alias.name, "__init__.py")
+                rel_path = os.path.join(node.module, "__init__.py")
                 src = os.path.join(module_dir, rel_path)
                 if os.path.exists(src):
                     self.import_paths.add(rel_path)
@@ -340,8 +340,9 @@ if __name__ == "__main__":
                 shebang = app.top_module().shebang
             else:
                 shebang = None
-            shebang = shebang.strip() + "\n"
+
             if shebang:
+                shebang = shebang.strip() + "\n"
                 F.write(shebang.encode())
                 
             # put the zip
