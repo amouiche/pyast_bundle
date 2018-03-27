@@ -324,7 +324,7 @@ if __name__ == "__main__":
     parser.add_argument("-z", "--pyz", metavar="FILE", help = "PYZ package output file")
     parser.add_argument("-Z", "--compression", metavar="METHODE", choices = ["none", "zip", "bzip2", "lzma"], default = "none", help = "Compression methode to use. (default none)")
     parser.add_argument("-s", "--shebang", action="store_true", help = "Place the main module shebang at the head of the pyz file")
-    parser.add_argument("-S", "--shebang-replace", metavar="SHEBANG", help = "Place this specific shebang at the heade of the pyz file")
+    parser.add_argument("-S", "--shebang-replace", metavar="SHEBANG", help = "Place this specific shebang at the head of the pyz file")
     parser.add_argument("-X", "--executable", action="store_true", help = "chmod a+x")
     
     parser.add_argument("-c", "--config", metavar="FILE", help = "Config file")
@@ -399,7 +399,7 @@ if __name__ == "__main__":
             print(args.pyz)
                 
     
-    # cleanup or intermediate / temporary files
+    # cleanup of intermediate / temporary files
     if temp_outpur_dir and not args.keep:
         shutil.rmtree(args.output_dir)
 
