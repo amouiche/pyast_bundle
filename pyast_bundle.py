@@ -322,6 +322,7 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--module", metavar="FILE", required=True, help = 'initial module source file')
     parser.add_argument("-o", "--output-dir", metavar="DIR", help = 'directory where new files are created')
     parser.add_argument("-z", "--pyz", metavar="FILE", help = "PYZ package output file")
+    parser.add_argument("-Z", "--compression", metavar="METHODE", choices = ["none", "zip", "bzip2", "lzma"], default = "none", help = "Compression methode to use. (default none)")
     parser.add_argument("-s", "--shebang", action="store_true", help = "Place the main module shebang at the head of the pyz file")
     parser.add_argument("-S", "--shebang-replace", metavar="SHEBANG", help = "Place this specific shebang at the heade of the pyz file")
     parser.add_argument("-X", "--executable", action="store_true", help = "chmod a+x")
@@ -348,9 +349,6 @@ if __name__ == "__main__":
     else:
         temp_outpur_dir = False
         
-    
-
-
 
     app = App()
     if args.config:
@@ -365,7 +363,13 @@ if __name__ == "__main__":
         print("Create pyz bundle %s from %s" % (args.pyz, args.output_dir))
         
         zio = io.BytesIO()
-        with zipfile.ZipFile(zio, mode="w") as zf:
+        compression = {
+            "none":zipfile.ZIP_STORED, 
+            "zip": zipfile.ZIP_DEFLATED, 
+            "bzip2": zipfile.ZIP_BZIP2, 
+            "lzma": zipfile.ZIP_LZMA
+            }[args.compression]
+        with zipfile.ZipFile(zio, mode="w", compression=compression) as zf:
             for module in app.modules:
                 src = os.path.join( args.output_dir, module.target_relative_path )
                 print("%s => %s" % (src, module.target_relative_path))
