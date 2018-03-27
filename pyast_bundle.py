@@ -33,6 +33,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
+VERSION="1.0"
+
 import argparse
 import ast
 import astor
@@ -345,15 +347,15 @@ class Module:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description='Python Bundle tool using AST for introspection',
+        description='''Python Bundle tool using AST for introspection and light obfuscation.
+Version %s''' % VERSION,
         formatter_class=argparse.RawTextHelpFormatter
         )
 
 
-    parser.add_argument("-v", "--verbose", action="store_true", help = 'more debug')
-
     parser.add_argument("-m", "--module", metavar="FILE", required=True, help = 'initial module source file')
-    parser.add_argument("-o", "--output-dir", metavar="DIR", help = 'directory where new files are created')
+    parser.add_argument("-o", "--output-dir", metavar="DIR", help = '''Directory where files are grouped before zipping.
+(Temporary directory if missing)''')
     parser.add_argument("-z", "--pyz", metavar="FILE", help = "PYZ package output file")
     parser.add_argument("-Z", "--compression", metavar="METHODE", choices = ["none", "zip", "bzip2", "lzma"], default = "none", help = "Compression methode to use. (default none)")
     parser.add_argument("-s", "--shebang", action="store_true", help = "Place the main module shebang at the head of the pyz file")
@@ -361,8 +363,10 @@ if __name__ == "__main__":
     parser.add_argument("-X", "--executable", action="store_true", help = "chmod a+x")
     
     parser.add_argument("-c", "--config", metavar="FILE", help = "Config file")
-    parser.add_argument("-t", action="store_true", help = "Config file")
-    parser.add_argument("-k", "--keep", help="keep intermediate generated files (eg. temporary output dir)")
+
+    debug_grp = parser.add_argument_group("Debug options")
+    debug_grp.add_argument("-k", "--keep", help="keep intermediate generated files (eg. temporary output dir)")
+    debug_grp.add_argument("-v", "--verbose", action="store_true", help = 'more debug')
     
     args = parser.parse_args()
     
