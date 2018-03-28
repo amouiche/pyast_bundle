@@ -382,7 +382,7 @@ Version %s''' % VERSION,
     parser.add_argument("-o", "--output-dir", metavar="DIR", help = '''Directory where files are grouped before zipping.
 (Temporary directory if missing)''')
     parser.add_argument("-z", "--pyz", metavar="FILE", help = "PYZ package output file")
-    parser.add_argument("-Z", "--compression", metavar="METHODE", choices = ["none", "zip", "bzip2", "lzma"], default = "none", help = "Compression methode to use. (default none)")
+    parser.add_argument("-Z", "--compression", metavar="METHODE", choices = ["none", "zip", "bzip2", "lzma"], default = "zip", help = "Compression methode to use. (default none)")
     parser.add_argument("-s", "--shebang", action="store_true", help = "Place the main module shebang at the head of the pyz file")
     parser.add_argument("-S", "--shebang-replace", metavar="SHEBANG", help = "Place this specific shebang at the head of the pyz file")
     parser.add_argument("-X", "--executable", action="store_true", help = "chmod a+x")
