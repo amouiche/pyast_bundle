@@ -58,7 +58,7 @@ class App:
         self.ob_ids_map = dict()  # how IDs are mappend to obfuscated IDs
         
         
-        self.ob_ids_map["FLASH_ADDR"] = None
+        self.ob_docstring_exclude_re = []   # list of re complied object to test each doctring to know if the should not be obfuscated
         
         self.CONFIG = {
             "OBFUSCATE_MODE": "md5",
@@ -138,6 +138,12 @@ class App:
         Generate a bundle of top module + found imports in target_dir.
         Apply obfusaction.
         """
+        
+        for pattern in self.CONFIG["OBFUSCATE_DOCSTRING_EXCLUDE"]:
+            self.ob_docstring_exclude_re.append(re.compile(pattern))
+        
+        
+        
         logging.debug("App::generate_bundled_dir(dir_target=%r)" % dir_target)
         for module in self.modules:
             module.obfuscate_docstring()
@@ -155,8 +161,6 @@ class Module:
         self.path = path
         self.target_relative_path = None
         self.app = app
-        
-        self.docstring_exclude = []
         
         self.import_paths = set()  # set of imported python files relative to the directory containing this module
         self.shebang = None # initial shebang if there is one
@@ -259,7 +263,7 @@ class Module:
                     # replace the string content with an empty string
                     
                     remove = True
-                    for r in self.docstring_exclude:
+                    for r in self.app.ob_docstring_exclude_re:
                         if r.search(node.value.s):
                             remove = False
                             break
