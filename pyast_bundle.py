@@ -48,6 +48,7 @@ import shutil
 import zipfile
 import io
 import stat
+import json
 
 class App:
 
@@ -74,8 +75,9 @@ class App:
             
     def read_config(self,path):
         logging.debug("Read config from %s" % path)
-        exec(open(path).read(), self.CONFIG)
-        logging.debug(" => %r" % self.CONFIG)
+        config_input = json.load(open(path))
+        logging.debug(" => %r" % config_input)
+        sef.CONFIG.update(config_input)
         
     def add_module(self, path, target_relative_path):
         """
@@ -86,6 +88,9 @@ class App:
         module = Module(path, app=self)
         module.target_relative_path = target_relative_path
         module.parse()
+        
+        if module.CONFIG:
+            self.CONFIG.update(module.CONFIG)
         
         module.walk_test()
         
@@ -156,7 +161,7 @@ class Module:
         self.import_paths = set()  # set of imported python files relative to the directory containing this module
         self.shebang = None # initial shebang if there is one
 
-
+        self.CONFIG = None   # 
         
     def parse(self):
         logging.debug("Module::parse: self.path=%s" % self.path)
@@ -178,6 +183,26 @@ class Module:
             for child in ast.iter_child_nodes(node):
                 child.o_parent = node
                 child.o_level = node.o_level + 1
+                
+        # look for "# pyast_bundle_config" top level docstring
+        for child in ast.iter_child_nodes(self.AST):
+
+            if isinstance(child, ast.Expr):
+                if isinstance(child.value, ast.Str):
+                    print("----")
+                    print(child.value.s)
+                    
+                    print("----")
+                    m = re.match(r"[ \t\r\n]*# *pyast_bundle_config *\n(.*)", child.value.s, re.MULTILINE | re.DOTALL)
+                    if m:
+                        print("-"*40)
+                        print(m.group(1))
+                        
+                        self.CONFIG = json.loads(m.group(1))
+                        child.value.s = ""
+                
+
+
     
         # look for imported modules
         dirname = os.path.dirname(self.path)
