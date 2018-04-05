@@ -1,0 +1,57 @@
+#!/bin/sh
+
+cd $(dirname $0)
+PYAST_BUNDLE=../pyast_bundle.py
+
+export PYTHON=python3
+SHEBANG="\#!/usr/bin/env python3"
+
+if [ $# -gt 0 ]; then
+    FORCE=false
+    TESTS=$@
+else
+    FORCE=true
+    TESTS=test*
+fi
+
+
+run_check() {
+    echo "[run: $@]"
+    $@
+    status=$?
+    if [ $status -ne 0 ]; then
+        echo "error: $msg"
+        exit 1
+    fi
+}
+
+echo $TESTS
+
+for TEST in $TESTS; do
+    TEST_DIR=.test.$TEST
+    if [ -f $TEST_DIR/done ] && $FORCE; then
+        echo "$TEST: already done"
+    else
+        echo "--------------------------------------------------------------------------------"
+        rm -rf $TEST_DIR
+        mkdir -p $TEST_DIR/build
+        
+        echo "$TEST: bundle"
+        run_check $PYAST_BUNDLE -v -m $TEST/__main__.py -o $TEST_DIR/build -z $TEST_DIR/test.pyz -X -S '$(SHEBANG)'
+        
+        echo "$TEST: run"
+        if [ -x $TEST/do_test ]; then
+            run_check $TEST/do_test
+        else
+            echo "$TEST: run from build dir"
+            run_check $PYTHON $TEST_DIR/build/__main__.py
+            
+            echo "$TEST: run from pyz"
+            run_check $PYTHON $TEST_DIR/test.pyz
+
+        fi
+        echo "  success."
+        touch $TEST_DIR/done
+    fi
+done
+
