@@ -368,6 +368,11 @@ class Module:
         astor.strip_tree(self.AST)
         
         logging.debug("%s: generate to %s" % (self.path, output_path))
+        
+        try:
+            os.makedirs(os.path.dirname(output_path))
+        except FileExistsError:
+            pass
         with open(output_path, "w") as F:
             F.write(astor.to_source(self.AST, indent_with=" "))
 
